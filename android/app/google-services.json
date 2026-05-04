@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "855996311514",
+    "project_id": "employee-tracker-ed5a6",
+    "storage_bucket": "employee-tracker-ed5a6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:855996311514:android:957d645b52e95de297c2e3",
+        "android_client_info": {
+          "package_name": "com.internal.employee_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB3Z0KdUVhMzIdHayoPmDgYN-ahINff9m0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

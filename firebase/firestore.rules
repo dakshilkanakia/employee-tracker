@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // helper: get the calling user's profile
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isManager() {
+      return userDoc().data.role == 'manager';
+    }
+
+    function sameOrg(orgId) {
+      return userDoc().data.orgId == orgId;
+    }
+
+    // ── users ──────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      // anyone in same org can read user profiles (for name display)
+      allow read: if request.auth != null
+                  && sameOrg(resource.data.orgId);
+
+      // user can write their own doc (signup + fcmToken updates)
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ── organizations ──────────────────────────────────────────────────────
+    match /organizations/{orgId} {
+      // unauthenticated read allowed — invite code lookup happens before auth account exists
+      allow read: if true;
+
+      // only manager in this org can update (e.g. regenerate invite code)
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+                    && isManager()
+                    && sameOrg(orgId);
+    }
+
+    // ── tasks ──────────────────────────────────────────────────────────────
+    match /tasks/{taskId} {
+      // any org member can read tasks in their org
+      allow read: if request.auth != null
+                  && sameOrg(resource.data.orgId);
+
+      // only manager can create or delete tasks
+      allow create: if request.auth != null && isManager();
+      allow delete: if request.auth != null && isManager();
+
+      // manager can update anything; employee can only update
+      // completedBy, proofImageUrls, status (for check-offs)
+      allow update: if request.auth != null && (
+        isManager() ||
+        (
+          sameOrg(resource.data.orgId) &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['completedBy', 'proofImageUrls', 'status', 'completedAt'])
+        )
+      );
+    }
+
+    // ── notifications ──────────────────────────────────────────────────────
+    match /notifications/{notifId} {
+      // user can read their own notifications
+      allow read: if request.auth != null
+                  && resource.data.toUid == request.auth.uid;
+
+      // Cloud Functions write notifications (via admin SDK — bypasses rules)
+      // Users can only update 'read' field on their own notifs
+      allow update: if request.auth != null
+                    && resource.data.toUid == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['read']);
+    }
+
+  }
+}
