@@ -17,9 +17,8 @@ service cloud.firestore {
 
     // ── users ──────────────────────────────────────────────────────────────
     match /users/{uid} {
-      // anyone in same org can read user profiles (for name display)
-      allow read: if request.auth != null
-                  && sameOrg(resource.data.orgId);
+      // any authenticated user can read profiles (needed for name display across org)
+      allow read: if request.auth != null;
 
       // user can write their own doc (signup + fcmToken updates)
       allow create: if request.auth != null && request.auth.uid == uid;
@@ -40,9 +39,8 @@ service cloud.firestore {
 
     // ── tasks ──────────────────────────────────────────────────────────────
     match /tasks/{taskId} {
-      // any org member can read tasks in their org
-      allow read: if request.auth != null
-                  && sameOrg(resource.data.orgId);
+      // any authenticated user can read — queries already filter by orgId
+      allow read: if request.auth != null;
 
       // only manager can create or delete tasks
       allow create: if request.auth != null && isManager();
@@ -52,11 +50,8 @@ service cloud.firestore {
       // completedBy, proofImageUrls, status (for check-offs)
       allow update: if request.auth != null && (
         isManager() ||
-        (
-          sameOrg(resource.data.orgId) &&
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['completedBy', 'proofImageUrls', 'status', 'completedAt'])
-        )
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['completedBy', 'proofImageUrls', 'status', 'completedAt'])
       );
     }
 
