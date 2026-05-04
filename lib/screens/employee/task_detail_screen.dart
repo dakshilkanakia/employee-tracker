@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -258,7 +258,7 @@ class _CompleteSheet extends StatefulWidget {
 }
 
 class _CompleteSheetState extends State<_CompleteSheet> {
-  final List<File> _images = [];
+  final List<XFile> _images = [];
   final _notesCtrl = TextEditingController();
   final _picker = ImagePicker();
 
@@ -272,7 +272,7 @@ class _CompleteSheetState extends State<_CompleteSheet> {
     final picked = await _picker.pickImage(
         source: source, imageQuality: 80, maxWidth: 1200);
     if (picked != null) {
-      setState(() => _images.add(File(picked.path)));
+      setState(() => _images.add(picked));
     }
   }
 
@@ -325,8 +325,15 @@ class _CompleteSheetState extends State<_CompleteSheet> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.file(_images[i],
-                            width: 80, height: 80, fit: BoxFit.cover),
+                        child: FutureBuilder<Uint8List>(
+                          future: _images[i].readAsBytes(),
+                          builder: (_, snap) => snap.hasData
+                              ? Image.memory(snap.data!,
+                                  width: 80, height: 80, fit: BoxFit.cover)
+                              : Container(
+                                  width: 80, height: 80,
+                                  color: Colors.grey[200]),
+                        ),
                       ),
                       Positioned(
                         top: 2,

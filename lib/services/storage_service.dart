@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 class StorageService {
@@ -8,19 +8,20 @@ class StorageService {
   Future<String> uploadProofImage({
     required String taskId,
     required String uid,
-    required File file,
+    required XFile file,
   }) async {
-    final ext = file.path.split('.').last;
+    final ext = file.name.split('.').last.toLowerCase();
     final fileName = '${const Uuid().v4()}.$ext';
     final ref = _storage.ref('proof/$taskId/$uid/$fileName');
-    final task = await ref.putFile(file);
+    final bytes = await file.readAsBytes();
+    final task = await ref.putData(bytes, SettableMetadata(contentType: 'image/$ext'));
     return await task.ref.getDownloadURL();
   }
 
   Future<List<String>> uploadMultipleProofImages({
     required String taskId,
     required String uid,
-    required List<File> files,
+    required List<XFile> files,
   }) async {
     final futures = files.map((f) => uploadProofImage(
           taskId: taskId,

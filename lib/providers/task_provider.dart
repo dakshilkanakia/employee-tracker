@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/task_model.dart';
 import '../models/user_model.dart';
 import '../services/task_service.dart';
@@ -106,7 +106,7 @@ class TaskProvider extends ChangeNotifier {
   Future<bool> completeTask({
     required TaskModel task,
     required UserModel currentUser,
-    required List<File> proofImages,
+    required List<XFile> proofImages,
   }) async {
     _setSubmitting(true);
     try {
