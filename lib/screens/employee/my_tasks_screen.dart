@@ -14,7 +14,7 @@ class MyTasksScreen extends StatefulWidget {
 }
 
 class _MyTasksScreenState extends State<MyTasksScreen> {
-  String _filter = 'all';
+  String _filter = 'pending';
 
   List<TaskModel> _applyFilter(List<TaskModel> tasks) {
     return tasks.where((t) {

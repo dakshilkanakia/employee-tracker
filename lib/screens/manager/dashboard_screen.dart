@@ -16,7 +16,7 @@ class ManagerDashboardScreen extends StatefulWidget {
 }
 
 class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
-  String _filter = 'all'; // all | pending | in_progress | completed | overdue
+  String _filter = 'pending'; // all | pending | in_progress | completed | overdue
   String? _filterEmployeeUid;
   List<UserModel> _employees = [];
 
