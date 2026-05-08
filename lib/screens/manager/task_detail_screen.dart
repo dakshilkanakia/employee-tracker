@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_colors.dart';
 import '../../models/task_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/task_provider.dart';
@@ -67,7 +68,7 @@ class _TaskDetailBodyState extends State<_TaskDetailBody> {
       final hex = widget.task.color.replaceFirst('#', '');
       return Color(int.parse('FF$hex', radix: 16));
     } catch (_) {
-      return const Color(0xFF2196F3);
+      return AppColors.primary;
     }
   }
 
@@ -76,21 +77,24 @@ class _TaskDetailBodyState extends State<_TaskDetailBody> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Task?'),
-        content: const Text('This cannot be undone.'),
+        content: const Text(
+            'This action cannot be undone. All proof images will be lost.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child:
-                  const Text('Delete', style: TextStyle(color: Colors.red))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+            ),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
     if (confirm != true || !mounted) return;
-    final ok =
-        await context.read<TaskProvider>().deleteTask(widget.task.id);
+    final ok = await context.read<TaskProvider>().deleteTask(widget.task.id);
     if (ok && mounted) context.pop();
   }
 
@@ -100,11 +104,13 @@ class _TaskDetailBodyState extends State<_TaskDetailBody> {
     final fmt = DateFormat('d MMM yyyy');
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Task Detail'),
+        backgroundColor: AppColors.background,
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(Icons.delete_outline, color: AppColors.error),
             onPressed: _deleteTask,
             tooltip: 'Delete task',
           ),
@@ -115,118 +121,191 @@ class _TaskDetailBodyState extends State<_TaskDetailBody> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // header
+            // Title card with accent
             Container(
               decoration: BoxDecoration(
-                border: Border(
-                    left: BorderSide(color: _taskColor, width: 4)),
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          task.title,
-                          style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      PriorityBadge(priority: task.priority),
-                    ],
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                  if (task.description.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(task.description,
-                        style: TextStyle(
-                            fontSize: 14, color: Colors.grey[700])),
-                  ],
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-            // meta info
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    _MetaRow(
-                        label: 'Status',
-                        value: task.status.label,
-                        icon: Icons.info_outline),
-                    _MetaRow(
-                        label: 'Assigned by',
-                        value: _userMap[task.assignedBy]?.name ?? '…',
-                        icon: Icons.person_outline),
-                    _MetaRow(
-                        label: 'Assigned on',
-                        value: fmt.format(task.dateAssigned),
-                        icon: Icons.calendar_today_outlined),
-                    _MetaRow(
-                        label: 'Due date',
-                        value: fmt.format(task.dueDate),
-                        icon: Icons.event_outlined,
-                        valueColor: task.isOverdue ? Colors.red : null),
-                    if (task.completedAt != null)
-                      _MetaRow(
-                          label: 'Completed',
-                          value: fmt.format(task.completedAt!),
-                          icon: Icons.check_circle_outline,
-                          valueColor: Colors.green),
-                    if (task.notes.isNotEmpty)
-                      _MetaRow(
-                          label: 'Notes',
-                          value: task.notes,
-                          icon: Icons.notes_outlined),
-                  ],
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(width: 4, color: _taskColor),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      task.title,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  PriorityBadge(priority: task.priority),
+                                ],
+                              ),
+                              if (task.description.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  task.description,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.textSecondary,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            // assignees + completion
-            const Text('Assignees',
-                style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            ...task.assignedTo.map((uid) {
-              final name = _userMap[uid]?.name ?? uid;
-              final done = task.hasUserCompleted(uid);
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  backgroundColor:
-                      done ? Colors.green : Colors.grey[300],
-                  child: Icon(
-                      done ? Icons.check : Icons.person_outline,
-                      color: Colors.white,
-                      size: 18),
+            const SizedBox(height: 12),
+            // Meta info
+            _InfoCard(
+              children: [
+                _MetaRow('Status', task.status.label, Icons.info_outline),
+                _MetaRow(
+                  'Assigned by',
+                  _userMap[task.assignedBy]?.name ?? '…',
+                  Icons.person_outline,
                 ),
-                title: Text(name),
-                trailing: done
-                    ? const Chip(
-                        label: Text('Done',
-                            style: TextStyle(
-                                color: Colors.green, fontSize: 12)),
-                        backgroundColor: Color(0xFFE8F5E9),
-                      )
-                    : const Chip(
-                        label: Text('Pending',
-                            style: TextStyle(
-                                color: Colors.orange, fontSize: 12)),
-                        backgroundColor: Color(0xFFFFF3E0),
+                _MetaRow(
+                  'Assigned on',
+                  fmt.format(task.dateAssigned),
+                  Icons.calendar_today_outlined,
+                ),
+                _MetaRow(
+                  'Due date',
+                  fmt.format(task.dueDate),
+                  Icons.event_outlined,
+                  valueColor: task.isOverdue ? AppColors.error : null,
+                ),
+                if (task.completedAt != null)
+                  _MetaRow(
+                    'Completed',
+                    fmt.format(task.completedAt!),
+                    Icons.check_circle_outline,
+                    valueColor: AppColors.statusDone,
+                  ),
+                if (task.notes.isNotEmpty)
+                  _MetaRow('Notes', task.notes, Icons.notes_outlined),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Assignees
+            const Text(
+              'Assignees',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _InfoCard(
+              children: task.assignedTo.map((uid) {
+                final name = _userMap[uid]?.name ?? uid;
+                final done = task.hasUserCompleted(uid);
+                final initial =
+                    name.isNotEmpty ? name[0].toUpperCase() : '?';
+                return ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                  leading: CircleAvatar(
+                    radius: 18,
+                    backgroundColor:
+                        done ? AppColors.statusDoneSurface : AppColors.border,
+                    child: Text(
+                      initial,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: done
+                            ? AppColors.statusDone
+                            : AppColors.textSecondary,
                       ),
-              );
-            }),
+                    ),
+                  ),
+                  title: Text(name,
+                      style: const TextStyle(fontSize: 14)),
+                  trailing: done
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.statusDoneSurface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: AppColors.statusDone
+                                    .withValues(alpha: 0.3)),
+                          ),
+                          child: const Text(
+                            'Completed',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.statusDone,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.statusPendingSurface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: AppColors.statusPending
+                                    .withValues(alpha: 0.3)),
+                          ),
+                          child: const Text(
+                            'Pending',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.statusPending,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                );
+              }).toList(),
+            ),
             if (task.proofImageUrls.isNotEmpty) ...[
               const SizedBox(height: 16),
-              const Text('Proof Images',
-                  style: TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600)),
+              const Text(
+                'Proof Images',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
               const SizedBox(height: 8),
               ProofImageViewer(imageUrls: task.proofImageUrls),
             ],
@@ -238,40 +317,65 @@ class _TaskDetailBodyState extends State<_TaskDetailBody> {
   }
 }
 
+class _InfoCard extends StatelessWidget {
+  final List<Widget> children;
+  const _InfoCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
 class _MetaRow extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
   final Color? valueColor;
 
-  const _MetaRow({
-    required this.label,
-    required this.value,
-    required this.icon,
-    this.valueColor,
-  });
+  const _MetaRow(this.label, this.value, this.icon, {this.valueColor});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: Colors.grey[500]),
+          Icon(icon, size: 16, color: AppColors.textMuted),
           const SizedBox(width: 10),
           SizedBox(
             width: 90,
-            child: Text(label,
-                style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
           ),
           Expanded(
             child: Text(
               value,
               style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: valueColor),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: valueColor ?? AppColors.textPrimary,
+              ),
             ),
           ),
         ],

@@ -1,12 +1,13 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_colors.dart';
 import '../../models/task_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../widgets/app_shell.dart';
 
 class PerformanceScreen extends StatefulWidget {
   const PerformanceScreen({super.key});
@@ -32,73 +33,6 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
     if (mounted) setState(() => _employees = emps);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final taskProv = context.read<TaskProvider>();
-    final orgId = auth.currentUser!.orgId;
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Performance')),
-      body: StreamBuilder<List<TaskModel>>(
-        stream: taskProv.orgTasksStream(orgId),
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final tasks = snap.data ?? [];
-          final stats = _buildStats(tasks);
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _SummaryCards(tasks: tasks),
-                const SizedBox(height: 24),
-                const Text(
-                  'Completion Rate by Employee',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 12),
-                _employees.isEmpty
-                    ? const Text('No employees yet.')
-                    : _CompletionChart(
-                        employees: _employees, stats: stats),
-                const SizedBox(height: 24),
-                const Text(
-                  'Employee Breakdown',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                ..._employees.map((e) => _EmployeeStatCard(
-                      employee: e,
-                      stat: stats[e.uid] ??
-                          _EmployeeStat(uid: e.uid),
-                    )),
-              ],
-            ),
-          );
-        },
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 2,
-        onTap: (i) {
-          if (i == 0) context.go('/manager');
-          if (i == 1) context.go('/manager/employees');
-        },
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined), label: 'Tasks'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.people_outlined), label: 'Employees'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined), label: 'Performance'),
-        ],
-      ),
-    );
-  }
-
   Map<String, _EmployeeStat> _buildStats(List<TaskModel> tasks) {
     final stats = <String, _EmployeeStat>{};
     for (final task in tasks) {
@@ -118,6 +52,54 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
     }
     return stats;
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final taskProv = context.read<TaskProvider>();
+    final orgId = auth.currentUser!.orgId;
+
+    return AppShell(
+      navIndex: 2,
+      isManager: true,
+      title: 'Performance',
+      child: StreamBuilder<List<TaskModel>>(
+        stream: taskProv.orgTasksStream(orgId),
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final tasks = snap.data ?? [];
+          final stats = _buildStats(tasks);
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SummaryGrid(tasks: tasks),
+                const SizedBox(height: 24),
+                _SectionHeader('Completion Rate by Employee'),
+                const SizedBox(height: 12),
+                _employees.isEmpty
+                    ? const _EmptyEmployees()
+                    : _CompletionChart(
+                        employees: _employees, stats: stats),
+                const SizedBox(height: 24),
+                _SectionHeader('Employee Breakdown'),
+                const SizedBox(height: 8),
+                ..._employees.map((e) => _EmployeeStatCard(
+                      employee: e,
+                      stat: stats[e.uid] ?? _EmployeeStat(uid: e.uid),
+                    )),
+                const SizedBox(height: 20),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _EmployeeStat {
@@ -133,62 +115,160 @@ class _EmployeeStat {
       totalAssigned == 0 ? 0 : completed / totalAssigned;
 }
 
-class _SummaryCards extends StatelessWidget {
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  const _SectionHeader(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary,
+      ),
+    );
+  }
+}
+
+class _SummaryGrid extends StatelessWidget {
   final List<TaskModel> tasks;
-  const _SummaryCards({required this.tasks});
+  const _SummaryGrid({required this.tasks});
 
   @override
   Widget build(BuildContext context) {
     final total = tasks.length;
     final done = tasks.where((t) => t.status == TaskStatus.completed).length;
+    final inProg = tasks.where((t) => t.status == TaskStatus.inProgress).length;
     final overdue = tasks.where((t) => t.isOverdue).length;
-    final inProg =
-        tasks.where((t) => t.status == TaskStatus.inProgress).length;
 
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.6,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 1.7,
       children: [
-        _StatCard(label: 'Total Tasks', value: '$total', color: Colors.blue),
-        _StatCard(
-            label: 'Completed', value: '$done', color: Colors.green),
-        _StatCard(
-            label: 'In Progress', value: '$inProg', color: Colors.orange),
-        _StatCard(label: 'Overdue', value: '$overdue', color: Colors.red),
+        _StatTile(
+          label: 'Total Tasks',
+          value: '$total',
+          icon: Icons.task_outlined,
+          color: AppColors.primary,
+          surface: AppColors.primarySurface,
+        ),
+        _StatTile(
+          label: 'Completed',
+          value: '$done',
+          icon: Icons.check_circle_outlined,
+          color: AppColors.statusDone,
+          surface: AppColors.statusDoneSurface,
+        ),
+        _StatTile(
+          label: 'In Progress',
+          value: '$inProg',
+          icon: Icons.timelapse_outlined,
+          color: AppColors.statusInProgress,
+          surface: AppColors.statusInProgressSurface,
+        ),
+        _StatTile(
+          label: 'Overdue',
+          value: '$overdue',
+          icon: Icons.warning_amber_outlined,
+          color: AppColors.error,
+          surface: AppColors.priorityHighSurface,
+        ),
       ],
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _StatTile extends StatelessWidget {
   final String label;
   final String value;
+  final IconData icon;
   final Color color;
+  final Color surface;
 
-  const _StatCard(
-      {required this.label, required this.value, required this.color});
+  const _StatTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.surface,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: surface,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                value,
                 style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: color)),
-            const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-          ],
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyEmployees extends StatelessWidget {
+  const _EmptyEmployees();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Center(
+        child: Text(
+          'No employees yet.',
+          style: TextStyle(color: AppColors.textSecondary),
         ),
       ),
     );
@@ -204,8 +284,14 @@ class _CompletionChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Container(
       height: 200,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
@@ -225,10 +311,11 @@ class _CompletionChart extends StatelessWidget {
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 28,
+                reservedSize: 32,
                 getTitlesWidget: (v, _) => Text(
                   '${v.toInt()}%',
-                  style: const TextStyle(fontSize: 10),
+                  style: const TextStyle(
+                      fontSize: 10, color: AppColors.textMuted),
                 ),
               ),
             ),
@@ -238,9 +325,11 @@ class _CompletionChart extends StatelessWidget {
                 getTitlesWidget: (v, _) {
                   final i = v.toInt();
                   if (i < 0 || i >= employees.length) return const SizedBox();
-                  final name = employees[i].name.split(' ').first;
-                  return Text(name,
-                      style: const TextStyle(fontSize: 10));
+                  return Text(
+                    employees[i].name.split(' ').first,
+                    style: const TextStyle(
+                        fontSize: 10, color: AppColors.textSecondary),
+                  );
                 },
               ),
             ),
@@ -249,7 +338,13 @@ class _CompletionChart extends StatelessWidget {
             rightTitles:
                 const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-          gridData: const FlGridData(show: false),
+          gridData: FlGridData(
+            show: true,
+            getDrawingHorizontalLine: (_) => const FlLine(
+              color: AppColors.border,
+              strokeWidth: 1,
+            ),
+          ),
           borderData: FlBorderData(show: false),
           barGroups: employees.asMap().entries.map((entry) {
             final rate =
@@ -259,8 +354,8 @@ class _CompletionChart extends StatelessWidget {
               barRods: [
                 BarChartRodData(
                   toY: rate,
-                  color: const Color(0xFF1565C0),
-                  width: 20,
+                  color: AppColors.primary,
+                  width: 18,
                   borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(4)),
                 ),
@@ -277,46 +372,98 @@ class _EmployeeStatCard extends StatelessWidget {
   final UserModel employee;
   final _EmployeeStat stat;
 
-  const _EmployeeStatCard(
-      {required this.employee, required this.stat});
+  const _EmployeeStatCard({required this.employee, required this.stat});
 
   @override
   Widget build(BuildContext context) {
     final rate = (stat.completionRate * 100).toStringAsFixed(0);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(employee.name,
+    final initial =
+        employee.name.isNotEmpty ? employee.name[0].toUpperCase() : '?';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: AppColors.primarySurface,
+                child: Text(
+                  initial,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                employee.name,
                 style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _MiniStat(label: 'Assigned', value: '${stat.totalAssigned}'),
-                _MiniStat(
-                    label: 'Completed',
-                    value: '${stat.completed}',
-                    color: Colors.green),
-                _MiniStat(
-                    label: 'On Time',
-                    value: '${stat.onTime}',
-                    color: Colors.blue),
-                _MiniStat(
-                    label: 'Overdue',
-                    value: '${stat.overdue}',
-                    color: Colors.red),
-                _MiniStat(
-                    label: 'Rate',
-                    value: '$rate%',
-                    color: const Color(0xFF1565C0)),
-              ],
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySurface,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '$rate%',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: stat.completionRate,
+              backgroundColor: AppColors.border,
+              color: AppColors.primary,
+              minHeight: 4,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _MiniStat('Assigned', '${stat.totalAssigned}'),
+              _MiniStat('Done', '${stat.completed}',
+                  color: AppColors.statusDone),
+              _MiniStat('On Time', '${stat.onTime}',
+                  color: AppColors.primary),
+              _MiniStat('Overdue', '${stat.overdue}',
+                  color: AppColors.error),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -327,20 +474,26 @@ class _MiniStat extends StatelessWidget {
   final String value;
   final Color? color;
 
-  const _MiniStat({required this.label, required this.value, this.color});
+  const _MiniStat(this.label, this.value, {this.color});
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Column(
         children: [
-          Text(value,
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: color ?? Colors.black87)),
-          Text(label,
-              style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: color ?? AppColors.textPrimary,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(
+                fontSize: 10, color: AppColors.textSecondary),
+          ),
         ],
       ),
     );

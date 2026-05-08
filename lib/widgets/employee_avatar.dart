@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
-import '../core/theme/app_theme.dart';
+import '../core/theme/app_colors.dart';
 
 class EmployeeAvatar extends StatelessWidget {
   final UserModel? user;
@@ -20,7 +20,7 @@ class EmployeeAvatar extends StatelessWidget {
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
     return CircleAvatar(
       radius: radius,
-      backgroundColor: AppTheme.primaryLight,
+      backgroundColor: AppColors.primaryLight,
       child: Text(
         initial,
         style: TextStyle(

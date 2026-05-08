@@ -15,9 +15,9 @@ class PriorityBadge extends StatelessWidget {
         vertical: small ? 2 : 3,
       ),
       decoration: BoxDecoration(
-        color: priority.color.withValues(alpha: 0.15),
+        color: priority.color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: priority.color.withValues(alpha: 0.4)),
+        border: Border.all(color: priority.color.withValues(alpha: 0.35)),
       ),
       child: Text(
         priority.label,
@@ -25,6 +25,7 @@ class PriorityBadge extends StatelessWidget {
           fontSize: small ? 10 : 11,
           fontWeight: FontWeight.w600,
           color: priority.color,
+          letterSpacing: 0.2,
         ),
       ),
     );

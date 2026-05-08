@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_colors.dart';
 import '../../models/task_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/task_provider.dart';
+import '../../widgets/app_shell.dart';
 import '../../widgets/task_card.dart';
 
 class MyTasksScreen extends StatefulWidget {
@@ -34,17 +36,11 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
     final taskProv = context.read<TaskProvider>();
     final user = auth.currentUser!;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Hi, ${user.name.split(' ').first}'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => context.push('/employee/notifications'),
-          ),
-        ],
-      ),
-      body: Column(
+    return AppShell(
+      navIndex: 0,
+      isManager: false,
+      title: 'Hi, ${user.name.split(' ').first}',
+      child: Column(
         children: [
           _FilterBar(
             selected: _filter,
@@ -59,25 +55,10 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                 }
                 final tasks = _applyFilter(snap.data ?? []);
                 if (tasks.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.task_outlined,
-                            size: 56, color: Colors.grey[400]),
-                        const SizedBox(height: 12),
-                        Text(
-                          _filter == 'all'
-                              ? 'No tasks assigned to you yet.'
-                              : 'No tasks match this filter.',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  );
+                  return _EmptyState(filter: _filter);
                 }
                 return ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.only(top: 8, bottom: 20),
                   itemCount: tasks.length,
                   itemBuilder: (_, i) => TaskCard(
                     task: tasks[i],
@@ -89,21 +70,6 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
               },
             ),
           ),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        onTap: (i) {
-          if (i == 1) context.go('/employee/all-tasks');
-          if (i == 2) context.go('/employee/settings');
-        },
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.assignment_outlined), label: 'My Tasks'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.group_outlined), label: 'Team Tasks'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_outlined), label: 'Profile'),
         ],
       ),
     );
@@ -126,22 +92,89 @@ class _FilterBar extends StatelessWidget {
       ('overdue', 'Overdue'),
     ];
     return Container(
-      color: Colors.white,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: filters.map((f) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text(f.$2),
-                selected: selected == f.$1,
-                onSelected: (_) => onChanged(f.$1),
-              ),
-            );
-          }).toList(),
-        ),
+      color: AppColors.surface,
+      child: Column(
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            child: Row(
+              children: filters.map((f) {
+                final active = selected == f.$1;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => onChanged(f.$1),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: active ? AppColors.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: active ? AppColors.primary : AppColors.border,
+                        ),
+                      ),
+                      child: Text(
+                        f.$2,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: active
+                              ? Colors.white
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const Divider(height: 1),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final String filter;
+  const _EmptyState({required this.filter});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: AppColors.primarySurface,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.assignment_outlined,
+                size: 36, color: AppColors.primary),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            filter == 'all'
+                ? 'No tasks assigned yet'
+                : 'No ${filter.replaceAll('_', ' ')} tasks',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'You\'re all caught up!',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+        ],
       ),
     );
   }

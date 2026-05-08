@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_colors.dart';
 import '../../models/task_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../widgets/app_shell.dart';
 import '../../widgets/task_card.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
@@ -16,7 +18,7 @@ class ManagerDashboardScreen extends StatefulWidget {
 }
 
 class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
-  String _filter = 'pending'; // all | pending | in_progress | completed | overdue
+  String _filter = 'pending';
   String? _filterEmployeeUid;
   List<UserModel> _employees = [];
 
@@ -29,8 +31,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   Future<void> _loadEmployees() async {
     final auth = context.read<AuthProvider>();
     final userProv = context.read<UserProvider>();
-    final user = auth.currentUser!;
-    final emps = await userProv.orgEmployeesStream(user.orgId).first;
+    final emps = await userProv.orgEmployeesStream(auth.currentUser!.orgId).first;
     if (mounted) setState(() => _employees = emps);
   }
 
@@ -55,99 +56,72 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
     final user = auth.currentUser!;
     final taskProv = context.read<TaskProvider>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => context.push('/manager/notifications'),
-            tooltip: 'Notifications',
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.push('/manager/settings'),
-            tooltip: 'Settings',
-          ),
-        ],
-      ),
-      body: Column(
+    return AppShell(
+      navIndex: 0,
+      isManager: true,
+      title: 'Tasks',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.add),
+          tooltip: 'New Task',
+          onPressed: () => context.push('/manager/create-task'),
+        ),
+      ],
+      child: Stack(
         children: [
-          _FilterBar(
-            selected: _filter,
-            onChanged: (f) => setState(() => _filter = f),
-            employees: _employees,
-            selectedEmployee: _filterEmployeeUid,
-            onEmployeeChanged: (uid) =>
-                setState(() => _filterEmployeeUid = uid),
-          ),
-          Expanded(
-            child: StreamBuilder<List<TaskModel>>(
-              stream: taskProv.orgTasksStream(user.orgId),
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final tasks = _applyFilters(snap.data ?? []);
-                if (tasks.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.task_outlined,
-                            size: 56, color: Colors.grey[400]),
-                        const SizedBox(height: 12),
-                        Text(
-                          _filter == 'all'
-                              ? 'No tasks yet. Create one!'
-                              : 'No tasks match this filter.',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                return FutureBuilder<Map<String, UserModel>>(
-                  future: _buildUserMap(tasks),
-                  builder: (context, userSnap) {
-                    final userMap = userSnap.data ?? {};
-                    final nameMap = userMap
-                        .map((uid, u) => MapEntry(uid, u.name));
-                    return ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 80),
-                      itemCount: tasks.length,
-                      itemBuilder: (_, i) => TaskCard(
-                        task: tasks[i],
-                        assigneeNames: nameMap,
-                        onTap: () =>
-                            context.push('/manager/task/${tasks[i].id}'),
-                      ),
+          Column(
+            children: [
+              _FilterBar(
+                selected: _filter,
+                onChanged: (f) => setState(() => _filter = f),
+                employees: _employees,
+                selectedEmployee: _filterEmployeeUid,
+                onEmployeeChanged: (uid) =>
+                    setState(() => _filterEmployeeUid = uid),
+              ),
+              Expanded(
+                child: StreamBuilder<List<TaskModel>>(
+                  stream: taskProv.orgTasksStream(user.orgId),
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final tasks = _applyFilters(snap.data ?? []);
+                    if (tasks.isEmpty) {
+                      return _EmptyState(filter: _filter);
+                    }
+                    return FutureBuilder<Map<String, UserModel>>(
+                      future: _buildUserMap(tasks),
+                      builder: (context, userSnap) {
+                        final nameMap = (userSnap.data ?? {})
+                            .map((uid, u) => MapEntry(uid, u.name));
+                        return ListView.builder(
+                          padding: const EdgeInsets.only(top: 8, bottom: 100),
+                          itemCount: tasks.length,
+                          itemBuilder: (_, i) => TaskCard(
+                            task: tasks[i],
+                            assigneeNames: nameMap,
+                            onTap: () =>
+                                context.push('/manager/task/${tasks[i].id}'),
+                          ),
+                        );
+                      },
                     );
                   },
-                );
-              },
+                ),
+              ),
+            ],
+          ),
+          // FAB
+          Positioned(
+            right: 20,
+            bottom: 20,
+            child: FloatingActionButton.extended(
+              onPressed: () => context.push('/manager/create-task'),
+              icon: const Icon(Icons.add),
+              label: const Text('New Task'),
             ),
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/manager/create-task'),
-        icon: const Icon(Icons.add),
-        label: const Text('New Task'),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        onTap: (i) {
-          if (i == 1) context.go('/manager/employees');
-          if (i == 2) context.go('/manager/performance');
-        },
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined), label: 'Tasks'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.people_outlined), label: 'Employees'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined), label: 'Performance'),
         ],
       ),
     );
@@ -185,49 +159,141 @@ class _FilterBar extends StatelessWidget {
     ];
 
     return Container(
-      color: Colors.white,
+      color: AppColors.surface,
       child: Column(
         children: [
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: Row(
               children: filters.map((f) {
                 final active = selected == f.$1;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(f.$2),
-                    selected: active,
-                    onSelected: (_) => onChanged(f.$1),
+                  child: _FilterChip(
+                    label: f.$2,
+                    active: active,
+                    onTap: () => onChanged(f.$1),
                   ),
                 );
               }).toList(),
             ),
           ),
-          if (employees.isNotEmpty)
+          if (employees.isNotEmpty) ...[
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
               child: Row(
                 children: [
-                  FilterChip(
-                    label: const Text('All Employees'),
-                    selected: selectedEmployee == null,
-                    onSelected: (_) => onEmployeeChanged(null),
+                  _FilterChip(
+                    label: 'All Employees',
+                    active: selectedEmployee == null,
+                    onTap: () => onEmployeeChanged(null),
+                    small: true,
                   ),
                   const SizedBox(width: 8),
                   ...employees.map((e) => Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: FilterChip(
-                          label: Text(e.name),
-                          selected: selectedEmployee == e.uid,
-                          onSelected: (_) => onEmployeeChanged(e.uid),
+                        child: _FilterChip(
+                          label: e.name,
+                          active: selectedEmployee == e.uid,
+                          onTap: () => onEmployeeChanged(e.uid),
+                          small: true,
                         ),
                       )),
                 ],
               ),
             ),
+          ] else
+            const SizedBox(height: 10),
+          const Divider(height: 1),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  final bool small;
+
+  const _FilterChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+    this.small = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: EdgeInsets.symmetric(
+          horizontal: small ? 10 : 12,
+          vertical: small ? 5 : 6,
+        ),
+        decoration: BoxDecoration(
+          color: active ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: small ? 11 : 12,
+            fontWeight: FontWeight.w500,
+            color: active ? Colors.white : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final String filter;
+  const _EmptyState({required this.filter});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.primarySurface,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.task_outlined,
+                size: 36, color: AppColors.primary),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            filter == 'all' ? 'No tasks yet' : 'No ${filter.replaceAll('_', ' ')} tasks',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            filter == 'all'
+                ? 'Tap "New Task" to create your first task.'
+                : 'Try a different filter.',
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
         ],
       ),
     );

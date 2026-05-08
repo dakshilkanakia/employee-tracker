@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_colors.dart';
 import '../../models/task_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
@@ -66,7 +67,7 @@ class _TaskBodyState extends State<_TaskBody> {
       final hex = widget.task.color.replaceFirst('#', '');
       return Color(int.parse('FF$hex', radix: 16));
     } catch (_) {
-      return const Color(0xFF2196F3);
+      return AppColors.primary;
     }
   }
 
@@ -78,9 +79,6 @@ class _TaskBodyState extends State<_TaskBody> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
       builder: (_) => _CompleteSheet(task: widget.task),
     );
   }
@@ -94,96 +92,160 @@ class _TaskBodyState extends State<_TaskBody> {
     final alreadyDone = task.hasUserCompleted(user.uid);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Task Detail')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Task Detail'),
+        backgroundColor: AppColors.background,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Title card
             Container(
               decoration: BoxDecoration(
-                border:
-                    Border(left: BorderSide(color: _taskColor, width: 4)),
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(task.title,
-                            style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                      PriorityBadge(priority: task.priority),
-                    ],
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                  if (task.description.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(task.description,
-                        style: TextStyle(
-                            fontSize: 14, color: Colors.grey[700])),
-                  ],
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    _Row('Status', task.status.label, Icons.info_outline),
-                    _Row(
-                        'Assigned by',
-                        _userMap[task.assignedBy]?.name ?? '…',
-                        Icons.person_outline),
-                    _Row('Due date', fmt.format(task.dueDate),
-                        Icons.event_outlined,
-                        valueColor: task.isOverdue ? Colors.red : null),
-                    if (task.notes.isNotEmpty)
-                      _Row('Notes', task.notes, Icons.notes_outlined),
-                  ],
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(width: 4, color: _taskColor),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      task.title,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  PriorityBadge(priority: task.priority),
+                                ],
+                              ),
+                              if (task.description.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  task.description,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.textSecondary,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            // Meta info
+            _InfoCard(
+              children: [
+                _MetaRow('Status', task.status.label, Icons.info_outline),
+                _MetaRow(
+                  'Assigned by',
+                  _userMap[task.assignedBy]?.name ?? '…',
+                  Icons.person_outline,
+                ),
+                _MetaRow(
+                  'Due date',
+                  fmt.format(task.dueDate),
+                  Icons.event_outlined,
+                  valueColor: task.isOverdue ? AppColors.error : null,
+                ),
+                if (task.notes.isNotEmpty)
+                  _MetaRow('Notes', task.notes, Icons.notes_outlined),
+              ],
+            ),
             if (task.isGroupTask) ...[
               const SizedBox(height: 16),
-              const Text('Group Progress',
-                  style: TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w600)),
+              const Text(
+                'Group Progress',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
               const SizedBox(height: 8),
-              ...task.assignedTo.map((uid) {
-                final name = _userMap[uid]?.name ?? uid;
-                final done = task.hasUserCompleted(uid);
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor: done ? Colors.green : Colors.grey[300],
-                    child: Icon(done ? Icons.check : Icons.person_outline,
-                        color: Colors.white, size: 18),
-                  ),
-                  title: Text(name),
-                  trailing: done
-                      ? const Icon(Icons.check_circle, color: Colors.green)
-                      : const Icon(Icons.radio_button_unchecked,
-                          color: Colors.grey),
-                );
-              }),
+              _InfoCard(
+                children: task.assignedTo.map((uid) {
+                  final name = _userMap[uid]?.name ?? uid;
+                  final done = task.hasUserCompleted(uid);
+                  final initial =
+                      name.isNotEmpty ? name[0].toUpperCase() : '?';
+                  return ListTile(
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                    leading: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: done
+                          ? AppColors.statusDoneSurface
+                          : AppColors.border,
+                      child: Text(
+                        initial,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: done
+                              ? AppColors.statusDone
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    title: Text(name, style: const TextStyle(fontSize: 14)),
+                    trailing: done
+                        ? const Icon(Icons.check_circle,
+                            color: AppColors.statusDone, size: 18)
+                        : const Icon(Icons.radio_button_unchecked,
+                            color: AppColors.textMuted, size: 18),
+                  );
+                }).toList(),
+              ),
             ],
             if (task.proofImageUrls.isNotEmpty) ...[
               const SizedBox(height: 16),
-              const Text('Proof Images',
-                  style: TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w600)),
+              const Text(
+                'Proof Images',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
               const SizedBox(height: 8),
               ProofImageViewer(imageUrls: task.proofImageUrls),
             ],
-            const SizedBox(height: 80),
+            const SizedBox(height: 100),
           ],
         ),
       ),
@@ -203,7 +265,7 @@ class _TaskBodyState extends State<_TaskBody> {
                     const SizedBox(height: 8),
                     ElevatedButton.icon(
                       onPressed: _showCompleteSheet,
-                      icon: const Icon(Icons.check_circle_outline),
+                      icon: const Icon(Icons.check_circle_outline, size: 18),
                       label: const Text('Complete Task'),
                     ),
                   ],
@@ -214,34 +276,66 @@ class _TaskBodyState extends State<_TaskBody> {
   }
 }
 
-class _Row extends StatelessWidget {
+class _InfoCard extends StatelessWidget {
+  final List<Widget> children;
+  const _InfoCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
+class _MetaRow extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
   final Color? valueColor;
 
-  const _Row(this.label, this.value, this.icon, {this.valueColor});
+  const _MetaRow(this.label, this.value, this.icon, {this.valueColor});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: Colors.grey[500]),
+          Icon(icon, size: 16, color: AppColors.textMuted),
           const SizedBox(width: 10),
           SizedBox(
-              width: 90,
-              child: Text(label,
-                  style: TextStyle(
-                      color: Colors.grey[600], fontSize: 13))),
+            width: 90,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+          ),
           Expanded(
-            child: Text(value,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: valueColor)),
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: valueColor ?? AppColors.textPrimary,
+              ),
+            ),
           ),
         ],
       ),
@@ -271,9 +365,7 @@ class _CompleteSheetState extends State<_CompleteSheet> {
   Future<void> _pickImage(ImageSource source) async {
     final picked = await _picker.pickImage(
         source: source, imageQuality: 80, maxWidth: 1200);
-    if (picked != null) {
-      setState(() => _images.add(picked));
-    }
+    if (picked != null) setState(() => _images.add(picked));
   }
 
   Future<void> _submit() async {
@@ -289,7 +381,7 @@ class _CompleteSheetState extends State<_CompleteSheet> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(ok ? 'Task marked complete!' : taskProv.error ?? 'Error'),
-        backgroundColor: ok ? Colors.green : Colors.red,
+        backgroundColor: ok ? AppColors.statusDone : AppColors.error,
       ),
     );
   }
@@ -301,19 +393,42 @@ class _CompleteSheetState extends State<_CompleteSheet> {
       padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Complete Task',
-                style:
-                    TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Complete Task',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 4),
-            Text('Add photo proof (optional)',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+            const Padding(
+              padding: EdgeInsets.only(left: 14),
+              child: Text(
+                'Add photo proof (optional)',
+                style: TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13),
+              ),
+            ),
             const SizedBox(height: 16),
-            // image grid
             if (_images.isNotEmpty) ...[
               SizedBox(
                 height: 80,
@@ -331,8 +446,13 @@ class _CompleteSheetState extends State<_CompleteSheet> {
                               ? Image.memory(snap.data!,
                                   width: 80, height: 80, fit: BoxFit.cover)
                               : Container(
-                                  width: 80, height: 80,
-                                  color: Colors.grey[200]),
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.border,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
                         ),
                       ),
                       Positioned(
@@ -341,11 +461,14 @@ class _CompleteSheetState extends State<_CompleteSheet> {
                         child: GestureDetector(
                           onTap: () =>
                               setState(() => _images.removeAt(i)),
-                          child: const CircleAvatar(
-                            radius: 10,
-                            backgroundColor: Colors.black54,
-                            child: Icon(Icons.close,
-                                size: 12, color: Colors.white),
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close,
+                                size: 10, color: Colors.white),
                           ),
                         ),
                       ),
@@ -359,14 +482,20 @@ class _CompleteSheetState extends State<_CompleteSheet> {
               children: [
                 OutlinedButton.icon(
                   onPressed: () => _pickImage(ImageSource.camera),
-                  icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                  icon: const Icon(Icons.camera_alt_outlined, size: 16),
                   label: const Text('Camera'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton.icon(
                   onPressed: () => _pickImage(ImageSource.gallery),
-                  icon: const Icon(Icons.photo_outlined, size: 18),
+                  icon: const Icon(Icons.photo_outlined, size: 16),
                   label: const Text('Gallery'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                  ),
                 ),
               ],
             ),
@@ -375,7 +504,6 @@ class _CompleteSheetState extends State<_CompleteSheet> {
               controller: _notesCtrl,
               decoration: const InputDecoration(
                 labelText: 'Completion notes (optional)',
-                border: OutlineInputBorder(),
               ),
               maxLines: 2,
             ),
@@ -394,7 +522,6 @@ class _CompleteSheetState extends State<_CompleteSheet> {
                     : const Text('Mark as Complete'),
               ),
             ),
-            const SizedBox(height: 8),
           ],
         ),
       ),
