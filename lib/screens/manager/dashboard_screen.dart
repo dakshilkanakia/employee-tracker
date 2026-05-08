@@ -71,6 +71,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
         children: [
           Column(
             children: [
+              _StatsBar(orgId: user.orgId),
               _FilterBar(
                 selected: _filter,
                 onChanged: (f) => setState(() => _filter = f),
@@ -251,6 +252,96 @@ class _FilterChip extends StatelessWidget {
             color: active ? Colors.white : AppColors.textSecondary,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _StatsBar extends StatelessWidget {
+  final String orgId;
+  const _StatsBar({required this.orgId});
+
+  @override
+  Widget build(BuildContext context) {
+    final taskProv = context.read<TaskProvider>();
+    return StreamBuilder<List<TaskModel>>(
+      stream: taskProv.orgTasksStream(orgId),
+      builder: (context, snap) {
+        final tasks = snap.data ?? [];
+        final pending =
+            tasks.where((t) => t.status == TaskStatus.pending).length;
+        final inProg =
+            tasks.where((t) => t.status == TaskStatus.inProgress).length;
+        final done =
+            tasks.where((t) => t.status == TaskStatus.completed).length;
+        final overdue = tasks.where((t) => t.isOverdue).length;
+
+        return Container(
+          color: AppColors.surface,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            children: [
+              _StatPill('${tasks.length}', 'Total',
+                  AppColors.primary, AppColors.primarySurface),
+              const SizedBox(width: 8),
+              _StatPill('$pending', 'Pending',
+                  AppColors.statusPending, AppColors.statusPendingSurface),
+              const SizedBox(width: 8),
+              _StatPill('$inProg', 'Active',
+                  AppColors.statusInProgress, AppColors.statusInProgressSurface),
+              const SizedBox(width: 8),
+              _StatPill('$done', 'Done',
+                  AppColors.statusDone, AppColors.statusDoneSurface),
+              if (overdue > 0) ...[
+                const SizedBox(width: 8),
+                _StatPill('$overdue', 'Overdue',
+                    AppColors.error, AppColors.priorityHighSurface),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _StatPill extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+  final Color surface;
+
+  const _StatPill(this.value, this.label, this.color, this.surface);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: color.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
       ),
     );
   }
