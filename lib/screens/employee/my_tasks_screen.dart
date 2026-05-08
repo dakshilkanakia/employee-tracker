@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../models/task_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/task_provider.dart';
+import '../../services/location_service.dart';
 import '../../widgets/app_shell.dart';
 import '../../widgets/task_card.dart';
 
@@ -17,6 +19,29 @@ class MyTasksScreen extends StatefulWidget {
 
 class _MyTasksScreenState extends State<MyTasksScreen> {
   String _filter = 'pending';
+  Timer? _locationTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startLocationUpdates();
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startLocationUpdates() {
+    final uid = context.read<AuthProvider>().currentUser?.uid;
+    if (uid == null) return;
+    LocationService.updateLocation(uid);
+    _locationTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => LocationService.updateLocation(uid),
+    );
+  }
 
   List<TaskModel> _applyFilter(List<TaskModel> tasks) {
     return tasks.where((t) {

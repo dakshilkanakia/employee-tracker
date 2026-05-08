@@ -4,10 +4,13 @@ class UserModel {
   final String uid;
   final String name;
   final String email;
-  final String role; // 'manager' | 'employee'
+  final String role;
   final String orgId;
   final String fcmToken;
   final DateTime createdAt;
+  final double? lastLat;
+  final double? lastLng;
+  final DateTime? locationUpdatedAt;
 
   UserModel({
     required this.uid,
@@ -17,9 +20,13 @@ class UserModel {
     required this.orgId,
     this.fcmToken = '',
     required this.createdAt,
+    this.lastLat,
+    this.lastLng,
+    this.locationUpdatedAt,
   });
 
   bool get isManager => role == 'manager';
+  bool get hasLocation => lastLat != null && lastLng != null;
 
   factory UserModel.fromDoc(DocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
@@ -31,6 +38,10 @@ class UserModel {
       orgId: d['orgId'] ?? '',
       fcmToken: d['fcmToken'] ?? '',
       createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      lastLat: (d['lastLat'] as num?)?.toDouble(),
+      lastLng: (d['lastLng'] as num?)?.toDouble(),
+      locationUpdatedAt:
+          (d['locationUpdatedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -43,7 +54,13 @@ class UserModel {
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-  UserModel copyWith({String? fcmToken}) => UserModel(
+  UserModel copyWith({
+    String? fcmToken,
+    double? lastLat,
+    double? lastLng,
+    DateTime? locationUpdatedAt,
+  }) =>
+      UserModel(
         uid: uid,
         name: name,
         email: email,
@@ -51,5 +68,8 @@ class UserModel {
         orgId: orgId,
         fcmToken: fcmToken ?? this.fcmToken,
         createdAt: createdAt,
+        lastLat: lastLat ?? this.lastLat,
+        lastLng: lastLng ?? this.lastLng,
+        locationUpdatedAt: locationUpdatedAt ?? this.locationUpdatedAt,
       );
 }

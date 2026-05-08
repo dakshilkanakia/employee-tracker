@@ -39,4 +39,12 @@ class UserService {
   Future<void> updateFcmToken(String uid, String token) async {
     await _db.collection('users').doc(uid).update({'fcmToken': token});
   }
+
+  Future<void> updateLocation(String uid, double lat, double lng) async {
+    await _db.collection('users').doc(uid).update({
+      'lastLat': lat,
+      'lastLng': lng,
+      'locationUpdatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 }

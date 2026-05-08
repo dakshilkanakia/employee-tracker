@@ -10,6 +10,7 @@ import '../screens/manager/task_detail_screen.dart';
 import '../screens/manager/employee_list_screen.dart';
 import '../screens/manager/performance_screen.dart';
 import '../screens/manager/settings_screen.dart';
+import '../screens/manager/location_map_screen.dart';
 import '../screens/employee/my_tasks_screen.dart';
 import '../screens/employee/all_tasks_screen.dart';
 import '../screens/employee/task_detail_screen.dart';
@@ -64,6 +65,9 @@ GoRouter buildRouter(AuthProvider authProvider) {
       GoRoute(
           path: '/manager/performance',
           pageBuilder: (_, __) => _tabPage(const PerformanceScreen())),
+      GoRoute(
+          path: '/manager/map',
+          pageBuilder: (_, __) => _tabPage(const LocationMapScreen())),
 
       // Manager push routes — fade
       GoRoute(

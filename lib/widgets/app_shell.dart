@@ -28,6 +28,7 @@ class AppShell extends StatelessWidget {
           _NavItem(Icons.dashboard_outlined, Icons.dashboard, 'Tasks'),
           _NavItem(Icons.people_outlined, Icons.people, 'Employees'),
           _NavItem(Icons.bar_chart_outlined, Icons.bar_chart, 'Performance'),
+          _NavItem(Icons.location_on_outlined, Icons.location_on, 'Map'),
         ]
       : const [
           _NavItem(Icons.assignment_outlined, Icons.assignment, 'My Tasks'),
@@ -38,7 +39,12 @@ class AppShell extends StatelessWidget {
   void _onNavTap(BuildContext context, int index) {
     if (index == navIndex) return;
     if (isManager) {
-      final routes = ['/manager', '/manager/employees', '/manager/performance'];
+      final routes = [
+        '/manager',
+        '/manager/employees',
+        '/manager/performance',
+        '/manager/map',
+      ];
       context.go(routes[index]);
     } else {
       final routes = ['/employee', '/employee/all-tasks', '/employee/settings'];
