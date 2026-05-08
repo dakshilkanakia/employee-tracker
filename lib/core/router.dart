@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
@@ -15,14 +16,25 @@ import '../screens/employee/task_detail_screen.dart';
 import '../screens/employee/employee_settings_screen.dart';
 import '../screens/notifications_screen.dart';
 
+// Tab routes use no transition. Push routes (detail screens) use a fade.
+
+Page<void> _tabPage(Widget child) => NoTransitionPage(child: child);
+
+Page<void> _fadePage(Widget child) => CustomTransitionPage(
+      child: child,
+      transitionDuration: const Duration(milliseconds: 200),
+      transitionsBuilder: (_, animation, __, child) =>
+          FadeTransition(opacity: animation, child: child),
+    );
+
 GoRouter buildRouter(AuthProvider authProvider) {
   return GoRouter(
     refreshListenable: authProvider,
     redirect: (context, state) {
       final isAuthed = authProvider.isAuthenticated;
       final path = state.matchedLocation;
-      final isAuthRoute = path.startsWith('/login') ||
-          path.startsWith('/signup');
+      final isAuthRoute =
+          path.startsWith('/login') || path.startsWith('/signup');
 
       if (!isAuthed && !isAuthRoute) return '/login';
       if (isAuthed && isAuthRoute) {
@@ -32,55 +44,63 @@ GoRouter buildRouter(AuthProvider authProvider) {
     },
     routes: [
       GoRoute(path: '/', redirect: (_, __) => '/login'),
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+      GoRoute(
+          path: '/login',
+          pageBuilder: (_, __) => _tabPage(const LoginScreen())),
       GoRoute(
           path: '/signup/manager',
-          builder: (_, __) => const ManagerSignupScreen()),
+          pageBuilder: (_, __) => _fadePage(const ManagerSignupScreen())),
       GoRoute(
           path: '/signup/employee',
-          builder: (_, __) => const EmployeeSignupScreen()),
+          pageBuilder: (_, __) => _fadePage(const EmployeeSignupScreen())),
 
-      // Manager routes
+      // Manager tab routes — no transition
       GoRoute(
           path: '/manager',
-          builder: (_, __) => const ManagerDashboardScreen()),
-      GoRoute(
-          path: '/manager/create-task',
-          builder: (_, __) => const CreateTaskScreen()),
-      GoRoute(
-        path: '/manager/task/:taskId',
-        builder: (_, state) =>
-            ManagerTaskDetailScreen(taskId: state.pathParameters['taskId']!),
-      ),
+          pageBuilder: (_, __) => _tabPage(const ManagerDashboardScreen())),
       GoRoute(
           path: '/manager/employees',
-          builder: (_, __) => const EmployeeListScreen()),
+          pageBuilder: (_, __) => _tabPage(const EmployeeListScreen())),
       GoRoute(
           path: '/manager/performance',
-          builder: (_, __) => const PerformanceScreen()),
-      GoRoute(
-          path: '/manager/settings',
-          builder: (_, __) => const ManagerSettingsScreen()),
-      GoRoute(
-          path: '/manager/notifications',
-          builder: (_, __) => const NotificationsScreen()),
+          pageBuilder: (_, __) => _tabPage(const PerformanceScreen())),
 
-      // Employee routes
-      GoRoute(path: '/employee', builder: (_, __) => const MyTasksScreen()),
+      // Manager push routes — fade
       GoRoute(
-          path: '/employee/all-tasks',
-          builder: (_, __) => const AllTasksScreen()),
+          path: '/manager/create-task',
+          pageBuilder: (_, __) => _fadePage(const CreateTaskScreen())),
       GoRoute(
-        path: '/employee/task/:taskId',
-        builder: (_, state) =>
-            EmployeeTaskDetailScreen(taskId: state.pathParameters['taskId']!),
+        path: '/manager/task/:taskId',
+        pageBuilder: (_, state) => _fadePage(
+            ManagerTaskDetailScreen(taskId: state.pathParameters['taskId']!)),
       ),
       GoRoute(
+          path: '/manager/settings',
+          pageBuilder: (_, __) => _fadePage(const ManagerSettingsScreen())),
+      GoRoute(
+          path: '/manager/notifications',
+          pageBuilder: (_, __) => _fadePage(const NotificationsScreen())),
+
+      // Employee tab routes — no transition
+      GoRoute(
+          path: '/employee',
+          pageBuilder: (_, __) => _tabPage(const MyTasksScreen())),
+      GoRoute(
+          path: '/employee/all-tasks',
+          pageBuilder: (_, __) => _tabPage(const AllTasksScreen())),
+      GoRoute(
           path: '/employee/settings',
-          builder: (_, __) => const EmployeeSettingsScreen()),
+          pageBuilder: (_, __) => _tabPage(const EmployeeSettingsScreen())),
+
+      // Employee push routes — fade
+      GoRoute(
+        path: '/employee/task/:taskId',
+        pageBuilder: (_, state) => _fadePage(
+            EmployeeTaskDetailScreen(taskId: state.pathParameters['taskId']!)),
+      ),
       GoRoute(
           path: '/employee/notifications',
-          builder: (_, __) => const NotificationsScreen()),
+          pageBuilder: (_, __) => _fadePage(const NotificationsScreen())),
     ],
   );
 }
