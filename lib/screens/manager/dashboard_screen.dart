@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/app_shell.dart';
+import '../../widgets/calendar_view.dart';
 import '../../widgets/task_card.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   String _filter = 'pending';
   String? _filterEmployeeUid;
   List<UserModel> _employees = [];
+  bool _calendarMode = false;
 
   @override
   void initState() {
@@ -62,68 +64,96 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
       title: 'Tasks',
       actions: [
         IconButton(
-          icon: const Icon(Icons.add),
-          tooltip: 'New Task',
-          onPressed: () => context.push('/manager/create-task'),
+          icon: Icon(
+            _calendarMode
+                ? Icons.view_list_outlined
+                : Icons.calendar_month_outlined,
+          ),
+          tooltip: _calendarMode ? 'List view' : 'Calendar view',
+          onPressed: () => setState(() => _calendarMode = !_calendarMode),
         ),
+        if (!_calendarMode)
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'New Task',
+            onPressed: () => context.push('/manager/create-task'),
+          ),
       ],
-      child: Stack(
-        children: [
-          Column(
+      child: StreamBuilder<List<TaskModel>>(
+        stream: taskProv.orgTasksStream(user.orgId),
+        builder: (context, snap) {
+          final allTasks = snap.data ?? [];
+
+          if (_calendarMode) {
+            return Column(
+              children: [
+                _StatsBar(orgId: user.orgId),
+                Expanded(
+                  child: CalendarView(
+                    tasks: allTasks,
+                    assigneeNames: _employeeNameMap,
+                    isManager: true,
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return Stack(
             children: [
-              _StatsBar(orgId: user.orgId),
-              _FilterBar(
-                selected: _filter,
-                onChanged: (f) => setState(() => _filter = f),
-                employees: _employees,
-                selectedEmployee: _filterEmployeeUid,
-                onEmployeeChanged: (uid) =>
-                    setState(() => _filterEmployeeUid = uid),
+              Column(
+                children: [
+                  _StatsBar(orgId: user.orgId),
+                  _FilterBar(
+                    selected: _filter,
+                    onChanged: (f) => setState(() => _filter = f),
+                    employees: _employees,
+                    selectedEmployee: _filterEmployeeUid,
+                    onEmployeeChanged: (uid) =>
+                        setState(() => _filterEmployeeUid = uid),
+                  ),
+                  Expanded(
+                    child: snap.connectionState == ConnectionState.waiting
+                        ? const Center(child: CircularProgressIndicator())
+                        : Builder(builder: (context) {
+                            final tasks = _applyFilters(allTasks);
+                            if (tasks.isEmpty) {
+                              return _EmptyState(filter: _filter);
+                            }
+                            return FutureBuilder<Map<String, UserModel>>(
+                              future: _buildUserMap(tasks),
+                              builder: (context, userSnap) {
+                                final nameMap = (userSnap.data ?? {})
+                                    .map((uid, u) => MapEntry(uid, u.name));
+                                return ListView.builder(
+                                  padding: const EdgeInsets.only(
+                                      top: 8, bottom: 100),
+                                  itemCount: tasks.length,
+                                  itemBuilder: (_, i) => TaskCard(
+                                    task: tasks[i],
+                                    assigneeNames: nameMap,
+                                    onTap: () => context
+                                        .push('/manager/task/${tasks[i].id}'),
+                                  ),
+                                );
+                              },
+                            );
+                          }),
+                  ),
+                ],
               ),
-              Expanded(
-                child: StreamBuilder<List<TaskModel>>(
-                  stream: taskProv.orgTasksStream(user.orgId),
-                  builder: (context, snap) {
-                    if (snap.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final tasks = _applyFilters(snap.data ?? []);
-                    if (tasks.isEmpty) {
-                      return _EmptyState(filter: _filter);
-                    }
-                    return FutureBuilder<Map<String, UserModel>>(
-                      future: _buildUserMap(tasks),
-                      builder: (context, userSnap) {
-                        final nameMap = (userSnap.data ?? {})
-                            .map((uid, u) => MapEntry(uid, u.name));
-                        return ListView.builder(
-                          padding: const EdgeInsets.only(top: 8, bottom: 100),
-                          itemCount: tasks.length,
-                          itemBuilder: (_, i) => TaskCard(
-                            task: tasks[i],
-                            assigneeNames: nameMap,
-                            onTap: () =>
-                                context.push('/manager/task/${tasks[i].id}'),
-                          ),
-                        );
-                      },
-                    );
-                  },
+              Positioned(
+                right: 20,
+                bottom: 20,
+                child: FloatingActionButton.extended(
+                  onPressed: () => context.push('/manager/create-task'),
+                  icon: const Icon(Icons.add),
+                  label: const Text('New Task'),
                 ),
               ),
             ],
-          ),
-          // FAB
-          Positioned(
-            right: 20,
-            bottom: 20,
-            child: FloatingActionButton.extended(
-              onPressed: () => context.push('/manager/create-task'),
-              icon: const Icon(Icons.add),
-              label: const Text('New Task'),
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -132,6 +162,9 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
     final uids = tasks.expand((t) => t.assignedTo).toSet().toList();
     return context.read<UserProvider>().getUserMap(uids);
   }
+
+  Map<String, String> get _employeeNameMap =>
+      Map.fromEntries(_employees.map((e) => MapEntry(e.uid, e.name)));
 }
 
 class _FilterBar extends StatelessWidget {

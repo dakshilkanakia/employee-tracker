@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../services/location_service.dart';
 import '../../widgets/app_shell.dart';
+import '../../widgets/calendar_view.dart';
 import '../../widgets/task_card.dart';
 
 class MyTasksScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class MyTasksScreen extends StatefulWidget {
 
 class _MyTasksScreenState extends State<MyTasksScreen> {
   String _filter = 'pending';
+  bool _calendarMode = false;
   Timer? _locationTimer;
 
   @override
@@ -65,37 +67,57 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
       navIndex: 0,
       isManager: false,
       title: 'Hi, ${user.name.split(' ').first}',
-      child: Column(
-        children: [
-          _FilterBar(
-            selected: _filter,
-            onChanged: (f) => setState(() => _filter = f),
+      actions: [
+        IconButton(
+          icon: Icon(
+            _calendarMode
+                ? Icons.view_list_outlined
+                : Icons.calendar_month_outlined,
           ),
-          Expanded(
-            child: StreamBuilder<List<TaskModel>>(
-              stream: taskProv.employeeTasksStream(user.orgId, user.uid),
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final tasks = _applyFilter(snap.data ?? []);
-                if (tasks.isEmpty) {
-                  return _EmptyState(filter: _filter);
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.only(top: 8, bottom: 20),
-                  itemCount: tasks.length,
-                  itemBuilder: (_, i) => TaskCard(
-                    task: tasks[i],
-                    showAssignees: false,
-                    onTap: () =>
-                        context.push('/employee/task/${tasks[i].id}'),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+          tooltip: _calendarMode ? 'List view' : 'Calendar view',
+          onPressed: () => setState(() => _calendarMode = !_calendarMode),
+        ),
+      ],
+      child: StreamBuilder<List<TaskModel>>(
+        stream: taskProv.employeeTasksStream(user.orgId, user.uid),
+        builder: (context, snap) {
+          final allTasks = snap.data ?? [];
+
+          if (_calendarMode) {
+            return CalendarView(
+              tasks: allTasks,
+              isManager: false,
+            );
+          }
+
+          return Column(
+            children: [
+              _FilterBar(
+                selected: _filter,
+                onChanged: (f) => setState(() => _filter = f),
+              ),
+              Expanded(
+                child: snap.connectionState == ConnectionState.waiting
+                    ? const Center(child: CircularProgressIndicator())
+                    : Builder(builder: (context) {
+                        final tasks = _applyFilter(allTasks);
+                        if (tasks.isEmpty) return _EmptyState(filter: _filter);
+                        return ListView.builder(
+                          padding:
+                              const EdgeInsets.only(top: 8, bottom: 20),
+                          itemCount: tasks.length,
+                          itemBuilder: (_, i) => TaskCard(
+                            task: tasks[i],
+                            showAssignees: false,
+                            onTap: () => context
+                                .push('/employee/task/${tasks[i].id}'),
+                          ),
+                        );
+                      }),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

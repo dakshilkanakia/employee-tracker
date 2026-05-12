@@ -16,6 +16,7 @@ import '../screens/employee/all_tasks_screen.dart';
 import '../screens/employee/task_detail_screen.dart';
 import '../screens/employee/employee_settings_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../screens/manager/create_employee_screen.dart';
 
 // Tab routes use no transition. Push routes (detail screens) use a fade.
 
@@ -73,6 +74,13 @@ GoRouter buildRouter(AuthProvider authProvider) {
       GoRoute(
           path: '/manager/create-task',
           pageBuilder: (_, __) => _fadePage(const CreateTaskScreen())),
+      GoRoute(
+        path: '/manager/edit-task/:taskId',
+        pageBuilder: (_, state) => _fadePage(
+            CreateTaskScreen(editTaskId: state.pathParameters['taskId']!))),
+      GoRoute(
+          path: '/manager/create-employee',
+          pageBuilder: (_, __) => _fadePage(const CreateEmployeeScreen())),
       GoRoute(
         path: '/manager/task/:taskId',
         pageBuilder: (_, state) => _fadePage(

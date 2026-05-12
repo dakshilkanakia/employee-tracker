@@ -7,6 +7,7 @@ import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/task_provider.dart';
+import 'providers/team_provider.dart';
 import 'providers/user_provider.dart';
 import 'services/notification_service.dart';
 
@@ -33,6 +34,7 @@ class _EmployeeTrackerAppState extends State<EmployeeTrackerApp> {
   late final AuthProvider _authProvider;
   late final TaskProvider _taskProvider;
   late final UserProvider _userProvider;
+  late final TeamProvider _teamProvider;
 
   @override
   void initState() {
@@ -40,6 +42,7 @@ class _EmployeeTrackerAppState extends State<EmployeeTrackerApp> {
     _authProvider = AuthProvider();
     _taskProvider = TaskProvider();
     _userProvider = UserProvider();
+    _teamProvider = TeamProvider();
     _init();
   }
 
@@ -59,6 +62,7 @@ class _EmployeeTrackerAppState extends State<EmployeeTrackerApp> {
         ChangeNotifierProvider.value(value: _authProvider),
         ChangeNotifierProvider.value(value: _taskProvider),
         ChangeNotifierProvider.value(value: _userProvider),
+        ChangeNotifierProvider.value(value: _teamProvider),
       ],
       builder: (context, _) {
         final authProvider = context.watch<AuthProvider>();

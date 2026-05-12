@@ -30,7 +30,8 @@ class TaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOverdue = task.isOverdue;
-    final fmt = DateFormat('d MMM');
+    final hasTime = task.dueDate.hour != 0 || task.dueDate.minute != 0;
+    final fmt = DateFormat(hasTime ? 'd MMM, h:mm a' : 'd MMM');
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),

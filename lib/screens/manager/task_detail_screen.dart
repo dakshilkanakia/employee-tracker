@@ -3,10 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../models/comment_model.dart';
 import '../../models/task_model.dart';
 import '../../models/user_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/task_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../services/comment_service.dart';
 import '../../widgets/priority_badge.dart';
 import '../../widgets/proof_image_viewer.dart';
 
@@ -47,6 +50,15 @@ class _TaskDetailBody extends StatefulWidget {
 
 class _TaskDetailBodyState extends State<_TaskDetailBody> {
   Map<String, UserModel> _userMap = {};
+  final _commentCtrl = TextEditingController();
+  final _commentSvc = CommentService();
+  bool _postingComment = false;
+
+  @override
+  void dispose() {
+    _commentCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -61,6 +73,21 @@ class _TaskDetailBodyState extends State<_TaskDetailBody> {
     }.toList();
     final map = await context.read<UserProvider>().getUserMap(uids);
     if (mounted) setState(() => _userMap = map);
+  }
+
+  Future<void> _postComment() async {
+    final text = _commentCtrl.text.trim();
+    if (text.isEmpty) return;
+    final user = context.read<AuthProvider>().currentUser!;
+    setState(() => _postingComment = true);
+    _commentCtrl.clear();
+    await _commentSvc.addComment(
+      taskId: widget.task.id,
+      authorUid: user.uid,
+      authorName: user.name,
+      text: text,
+    );
+    if (mounted) setState(() => _postingComment = false);
   }
 
   Color get _taskColor {
@@ -110,17 +137,25 @@ class _TaskDetailBodyState extends State<_TaskDetailBody> {
         backgroundColor: AppColors.background,
         actions: [
           IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () => context.push('/manager/edit-task/${task.id}'),
+            tooltip: 'Edit task',
+          ),
+          IconButton(
             icon: const Icon(Icons.delete_outline, color: AppColors.error),
             onPressed: _deleteTask,
             tooltip: 'Delete task',
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             // Title card with accent
             Container(
               decoration: BoxDecoration(
@@ -309,9 +344,30 @@ class _TaskDetailBodyState extends State<_TaskDetailBody> {
               const SizedBox(height: 8),
               ProofImageViewer(imageUrls: task.proofImageUrls),
             ],
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
+            // Comments
+            const Text(
+              'Discussion',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _CommentsSection(taskId: task.id),
+            const SizedBox(height: 16),
           ],
         ),
+            ),
+          ),
+          // Sticky comment input
+          _CommentInputBar(
+            controller: _commentCtrl,
+            posting: _postingComment,
+            onPost: _postComment,
+          ),
+        ],
       ),
     );
   }
@@ -378,6 +434,209 @@ class _MetaRow extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Shared comment widgets ─────────────────────────────────────────────────────
+
+class _CommentsSection extends StatelessWidget {
+  final String taskId;
+  const _CommentsSection({required this.taskId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<CommentModel>>(
+      stream: CommentService().commentsStream(taskId),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(
+              child: Padding(
+            padding: EdgeInsets.all(16),
+            child: CircularProgressIndicator(),
+          ));
+        }
+        final comments = snap.data ?? [];
+        if (comments.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Center(
+              child: Text(
+                'No messages yet. Start the discussion.',
+                style:
+                    TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+            ),
+          );
+        }
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              for (int i = 0; i < comments.length; i++) ...[
+                if (i > 0) const Divider(height: 1),
+                _CommentTile(comment: comments[i]),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CommentTile extends StatelessWidget {
+  final CommentModel comment;
+  const _CommentTile({required this.comment});
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = DateFormat('d MMM, h:mm a');
+    final initial = comment.authorName.isNotEmpty
+        ? comment.authorName[0].toUpperCase()
+        : '?';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: AppColors.primarySurface,
+            child: Text(
+              initial,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      comment.authorName,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      fmt.format(comment.createdAt),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  comment.text,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommentInputBar extends StatelessWidget {
+  final TextEditingController controller;
+  final bool posting;
+  final VoidCallback onPost;
+
+  const _CommentInputBar({
+    required this.controller,
+    required this.posting,
+    required this.onPost,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: const Border(top: BorderSide(color: AppColors.border)),
+      ),
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 8,
+        top: 8,
+        bottom: 8 + MediaQuery.of(context).padding.bottom,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => onPost(),
+              decoration: InputDecoration(
+                hintText: 'Add a message…',
+                hintStyle: const TextStyle(
+                    fontSize: 14, color: AppColors.textMuted),
+                filled: true,
+                fillColor: AppColors.background,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          posting
+              ? const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Padding(
+                    padding: EdgeInsets.all(10),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : IconButton(
+                  onPressed: onPost,
+                  icon: const Icon(Icons.send_rounded),
+                  color: AppColors.primary,
+                  iconSize: 22,
+                ),
         ],
       ),
     );
